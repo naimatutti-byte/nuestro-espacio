@@ -1,0 +1,44 @@
+GUÍA PARA ACTIVAR LA SINCRONIZACIÓN EN LOS DOS CELULARES
+
+Archivo: Nuestro_Espacio_Compartido.html
+
+1. Entra en https://console.firebase.google.com y crea un proyecto nuevo.
+2. En «Authentication» > «Sign-in method» habilita «Email/Password».
+3. En «Firestore Database» crea una base de datos en modo producción. Elige una ubicación adecuada (la ubicación no se puede cambiar fácilmente).
+4. Abre «Firestore Database» > «Rules» y reemplaza las reglas por estas:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /spaces/{roomId}/{kind}/{entryId} {
+      allow read, create, delete: if request.auth != null
+        && roomId.matches('^[a-f0-9]{48}$')
+        && (kind == 'cars' || kind == 'expenses')
+        && (request.method != 'create' ||
+            (request.resource.data.by == request.auth.uid &&
+             request.resource.data.keys().hasOnly(
+               kind == 'cars'
+                 ? ['finder','model','color','points','by','at']
+                 : ['date','category','amount','payer','description','by','at']
+             )));
+      allow update: if false;
+    }
+  }
+}
+
+Estas reglas son para una sala privada protegida por un código secreto largo. Cualquier usuario autenticado que obtenga ese código podría ver o eliminar los datos. Para datos más sensibles, convendría implementar control de miembros por UID.
+
+5. En «Configuración del proyecto» > «General» > «Tus apps» registra una aplicación web (icono </>). Copia la configuración de Firebase (firebaseConfig).
+6. Abre Nuestro_Espacio_Compartido.html en un editor de texto y reemplaza los valores REEMPLAZAR_* del objeto firebaseConfig por los datos reales, y guarda.
+7. Publica el HTML en un alojamiento HTTPS (por ejemplo, GitHub Pages o Firebase Hosting). En Firebase Authentication > Settings > Authorized domains añade el dominio de tu página si todavía no está autorizado.
+8. Desde el celular 1: abre la URL pública, crea una cuenta con tu correo, genera un código seguro (48 caracteres), guárdalo en un sitio seguro, y presiona «Entrar a nuestro espacio».
+9. Desde el celular 2: abre LA MISMA URL, crea otra cuenta con otro correo, copia EXACTAMENTE el mismo código y pulsa «Entrar a nuestro espacio».
+10. Prueben: cada teléfono registra un gasto o auto; la pantalla del otro teléfono deberá actualizarse sola.
+
+IMPORTANTE:
+- No es posible sincronizar en tiempo real dos teléfonos simplemente compartiendo un archivo HTML; requiere un servicio de datos en la nube, permisos y alojamiento web.
+- Los gastos y avistamientos se almacenan en Firebase, no solo en el navegador.
+- No se requiere compartir contraseñas; cada quien usa su propia cuenta.
+- Si pierden el código de sala, no podrán acceder a ese espacio hasta recuperarlo.
+- Mantengan privados el código compartido y sus contraseñas.
+- No registren contraseñas bancarias ni información financiera sensible dentro de descripciones.
